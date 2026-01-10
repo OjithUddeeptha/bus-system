@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PASSENGER
+  OPERATOR
+  ADMIN
+}
+
+enum BusStatus {
+  ACTIVE
+  MAINTENANCE
+  RETIRED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(PASSENGER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+  buses    Bus[]     @relation("OperatorBuses") // For operators
+  
+  // New Profile Fields
+  phoneNumber   String?
+  walletBalance Float   @default(0.0)
+  loyaltyPoints Int     @default(0)
+  profileImage  String?
+  preferences   Json?   // Stores { "seat": "window", "meal": "veg" } etc.
+}
+
+model Bus {
+  id         String    @id @default(uuid())
+  number     String    @unique
+  capacity   Int
+  status     BusStatus @default(ACTIVE)
+  operatorId String
+  operator   User      @relation("OperatorBuses", fields: [operatorId], references: [id])
+  
+  schedules  Schedule[]
+  liveLocation LiveBusLocation[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Route {
+  id          String   @id @default(uuid())
+  routeNumber String   @unique
+  routePath   String
+  startCity   String
+  endCity     String
+  distance    Float?
+  price       Float?
+  stops       String[]  // Intermediate stops for search
+  
+  schedules Schedule[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model LiveBusLocation {
+  id        String   @id @default(uuid())
+  busId     String
+  bus       Bus      @relation(fields: [busId], references: [id])
+  lat       Float
+  lng       Float
+  speed     Float?
+  heading   Float?
+  updatedAt DateTime @updatedAt
+}
+
+model Schedule {
+  id            String   @id @default(uuid())
+  departureTime DateTime
+  arrivalTime   DateTime
+  
+  busId         String
+  bus           Bus      @relation(fields: [busId], references: [id])
+  
+  routeId       String
+  route         Route    @relation(fields: [routeId], references: [id])
+  
+  bookings      Booking[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Booking {
+  id         String        @id @default(uuid())
+  seatNumber Int
+  status     BookingStatus @default(PENDING)
+  
+  userId     String
+  user       User          @relation(fields: [userId], references: [id])
+  
+  scheduleId String
+  schedule   Schedule      @relation(fields: [scheduleId], references: [id])
+  
+  ticket     Ticket?
+
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+}
+
+model Ticket {
+  id        String   @id @default(uuid())
+  qrCode    String?
+  
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  
+  createdAt DateTime @default(now())
+}
