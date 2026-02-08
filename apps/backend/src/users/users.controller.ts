@@ -21,12 +21,14 @@ export class UsersController {
     constructor(private readonly usersService: UsersService) { }
 
     @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard)
     @Get('profile')
-    async getProfile(@Request() req: any) {
+    async getProfile(@Request() req: any): Promise<any> {
         const user = await this.usersService.findById(req.user.userId);
         // Exclude password
         if (user) {
-            const { password, ...result } = user;
+            const userObj = user.toObject();
+            const { password, ...result } = userObj;
             return result;
         }
         return null;
@@ -34,14 +36,18 @@ export class UsersController {
 
     @UseGuards(JwtAuthGuard)
     @Patch('profile')
-    async updateProfile(@Request() req: any, @Body() updateProfileDto: UpdateProfileDto) {
+    async updateProfile(@Request() req: any, @Body() updateProfileDto: UpdateProfileDto): Promise<any> {
         // If phone number is empty string, set it to undefined or null to avoid validation issues if any strictness returns
         if (updateProfileDto.phoneNumber === '') {
             updateProfileDto.phoneNumber = undefined;
         }
         const user = await this.usersService.update(req.user.userId, updateProfileDto);
-        const { password, ...result } = user;
-        return result;
+        if (user) {
+            const userObj = user.toObject();
+            const { password, ...result } = userObj;
+            return result;
+        }
+        return null;
     }
 
     @UseGuards(JwtAuthGuard)

@@ -1,31 +1,35 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Schedule, ScheduleDocument } from '../schemas/schedule.schema';
 import { CreateScheduleDto } from './dto/create-schedule.dto';
 
 @Injectable()
 export class SchedulesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(@InjectModel(Schedule.name) private scheduleModel: Model<ScheduleDocument>) { }
 
     create(createScheduleDto: CreateScheduleDto) {
-        return this.prisma.schedule.create({ data: createScheduleDto });
+        const newSchedule = new this.scheduleModel(createScheduleDto);
+        return newSchedule.save();
     }
 
     findAll(routeId?: string) {
         if (routeId) {
-            return this.prisma.schedule.findMany({
-                where: { routeId },
-                include: { bus: true, route: true },
-            });
+            return this.scheduleModel.find({ routeId })
+                .populate('bus')
+                .populate('route')
+                .exec();
         }
-        return this.prisma.schedule.findMany({
-            include: { bus: true, route: true },
-        });
+        return this.scheduleModel.find()
+            .populate('bus')
+            .populate('route')
+            .exec();
     }
 
     findOne(id: string) {
-        return this.prisma.schedule.findUnique({
-            where: { id },
-            include: { bus: true, route: true },
-        });
+        return this.scheduleModel.findById(id)
+            .populate('bus')
+            .populate('route')
+            .exec();
     }
 }

@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Param } from '@nestjs/common';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { Role } from '@prisma/client';
+import { Role } from '../schemas/user.schema';
 
 @Controller('bookings')
 @UseGuards(JwtAuthGuard)
@@ -26,5 +26,9 @@ export class BookingsController {
     @UseGuards(RolesGuard)
     findAll() {
         return this.bookingsService.findAll();
+    }
+    @Get(':id')
+    findOne(@Param('id') id: string) {
+        return this.bookingsService.findOne(id);
     }
 }

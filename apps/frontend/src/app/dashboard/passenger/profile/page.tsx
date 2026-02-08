@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import api from '@/lib/api';
+import Image from 'next/image';
 import { FaUserCircle, FaEnvelope, FaPhone, FaWallet, FaStar, FaSave, FaUser, FaCamera, FaEdit } from 'react-icons/fa';
 
 interface UserProfile {
@@ -121,7 +122,14 @@ export default function ProfilePage() {
                         <div className="relative w-32 h-32 mb-4">
                             <div className="w-full h-full rounded-full border-4 border-indigo-500 shadow-lg overflow-hidden flex items-center justify-center bg-gray-700">
                                 {profileImage ? (
-                                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                                    <Image
+                                        src={profileImage}
+                                        alt="Profile"
+                                        width={128}
+                                        height={128}
+                                        className="w-full h-full object-cover"
+                                        unoptimized={!profileImage.startsWith('http')}
+                                    />
                                 ) : (
                                     <span className="text-5xl font-bold text-gray-400">
                                         {formik.values.name ? formik.values.name.charAt(0).toUpperCase() : 'U'}
@@ -208,6 +216,7 @@ export default function ProfilePage() {
                                         type="text"
                                         disabled={!isEditing}
                                         {...formik.getFieldProps('name')}
+                                        value={formik.values.name || ''}
                                         className={`w-full border rounded-lg p-3 shadow-sm transition-all ${isEditing ? 'bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-indigo-500' : 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed'}`}
                                         placeholder="Enter your name"
                                     />
@@ -226,6 +235,7 @@ export default function ProfilePage() {
                                         type="text"
                                         disabled={!isEditing}
                                         {...formik.getFieldProps('phoneNumber')}
+                                        value={formik.values.phoneNumber || ''}
                                         className={`w-full border rounded-lg p-3 shadow-sm transition-all ${isEditing ? 'bg-white text-gray-900 border-gray-300 focus:ring-2 focus:ring-indigo-500' : 'bg-gray-700 text-gray-400 border-gray-600 cursor-not-allowed'}`}
                                         placeholder="+94 77 123 4567"
                                     />
@@ -242,7 +252,7 @@ export default function ProfilePage() {
                                     <input
                                         id="email"
                                         type="email"
-                                        value={formik.values.email}
+                                        value={formik.values.email || ''}
                                         disabled
                                         className="w-full bg-gray-700 text-gray-400 border border-gray-600 rounded-lg p-3 cursor-not-allowed"
                                     />

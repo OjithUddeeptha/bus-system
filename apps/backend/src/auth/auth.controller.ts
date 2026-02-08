@@ -27,11 +27,12 @@ export class AuthController {
 
     @UseGuards(JwtAuthGuard)
     @Get('profile')
-    async getProfile(@Request() req: any) {
+    async getProfile(@Request() req: any): Promise<any> {
         // req.user has { userId, email, role } from JwtStrategy
         const user = await this.usersService.findById(req.user.userId);
         if (user) {
-            const { password, ...result } = user;
+            const userObj = user.toObject();
+            const { password, ...result } = userObj;
             return result;
         }
         return null;

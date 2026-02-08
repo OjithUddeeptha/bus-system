@@ -1,36 +1,35 @@
 import { Injectable, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Bus, BusDocument } from '../schemas/bus.schema';
 import { CreateBusDto } from './dto/create-bus.dto';
-import { BusStatus } from '@prisma/client';
 
 @Injectable()
 export class BusesService {
-    constructor(private prisma: PrismaService) { }
+    constructor(@InjectModel(Bus.name) private busModel: Model<BusDocument>) { }
 
     async create(createBusDto: CreateBusDto, operatorId: string) {
-        const existingBus = await this.prisma.bus.findUnique({
-            where: { number: createBusDto.number },
-        });
+        const existingBus = await this.busModel.findOne({ number: createBusDto.number });
         if (existingBus) {
             throw new ConflictException('Bus number already exists');
         }
 
-        return this.prisma.bus.create({
-            data: {
-                ...createBusDto,
-                operatorId,
-            },
+        const newBus = new this.busModel({
+            ...createBusDto,
+            operatorId,
         });
+
+        return newBus.save();
     }
 
     async findAll(operatorId?: string) {
         if (operatorId) {
-            return this.prisma.bus.findMany({ where: { operatorId } });
+            return this.busModel.find({ operatorId });
         }
-        return this.prisma.bus.findMany();
+        return this.busModel.find();
     }
 
     async findOne(id: string) {
-        return this.prisma.bus.findUnique({ where: { id } });
+        return this.busModel.findById(id);
     }
 }

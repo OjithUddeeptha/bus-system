@@ -17,10 +17,10 @@ export default function DashboardLayout({
                 {children}
             </main>
 
-            {/* Modern Floating Navigation */}
+            {/* Modern Bottom Navigation */}
             {isPassenger && (
-                <div className="fixed bottom-6 left-4 right-4 z-50">
-                    <nav className="bg-gray-800/90 backdrop-blur-lg border border-white/10 rounded-2xl shadow-2xl py-3 px-2 flex justify-around items-center max-w-lg mx-auto">
+                <div className="fixed bottom-0 left-0 right-0 z-[1000]">
+                    <nav className="bg-gray-900 border-t border-gray-800 shadow-2xl py-3 px-6 flex justify-between items-center w-full md:max-w-xl md:mx-auto md:rounded-t-2xl md:bottom-0">
                         <NavItem href="/dashboard/passenger" icon={<FaHome />} label="Home" active={pathname === '/dashboard/passenger'} />
                         <NavItem href="/dashboard/passenger/search" icon={<FaSearch />} label="Search" active={pathname === '/dashboard/passenger/search'} />
                         <NavItem href="/dashboard/passenger/trips" icon={<FaBus />} label="My Trips" active={pathname === '/dashboard/passenger/trips'} />

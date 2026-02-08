@@ -8,17 +8,11 @@ export default function TicketPage({ params }: { params: Promise<{ bookingId: st
     const [ticket, setTicket] = useState<any>(null);
 
     useEffect(() => {
-        // Fetch ticket details
-        // api.get(`/bookings/${params.bookingId}`).then(res => setTicket(res.data));
-        // Mock for UI demonstration
-        setTicket({
-            id: bookingId,
-            seatNumber: 12,
-            schedule: {
-                route: { startCity: 'Colombo', endCity: 'Kandy' },
-                departureTime: new Date().toISOString()
-            }
-        });
+        if (bookingId) {
+            api.get(`/bookings/${bookingId}`)
+                .then(res => setTicket(res.data))
+                .catch(err => console.error("Failed to fetch ticket", err));
+        }
     }, [bookingId]);
 
     if (!ticket) return <div>Loading...</div>;
@@ -48,22 +42,28 @@ export default function TicketPage({ params }: { params: Promise<{ bookingId: st
                     <div className="flex justify-between items-center pb-2">
                         <div>
                             <p className="text-xs text-gray-400">Date</p>
-                            <p className="font-semibold text-gray-800">May 24, 2027</p>
+                            <p className="font-semibold text-gray-800">
+                                {new Date(ticket.schedule.departureTime).toLocaleDateString()}
+                            </p>
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 text-right">Time</p>
-                            <p className="font-semibold text-gray-800">08:00 AM</p>
+                            <p className="font-semibold text-gray-800">
+                                {new Date(ticket.schedule.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
                         </div>
                     </div>
 
                     <div className="bg-gray-50 p-4 rounded-xl flex justify-between items-center">
                         <div>
                             <p className="text-xs text-gray-400">Seat Number</p>
-                            <p className="text-2xl font-bold text-green-600">{ticket.seatNumber}A</p>
+                            <p className="text-2xl font-bold text-green-600">{ticket.seatNumber}</p>
                         </div>
                         <div>
                             <p className="text-xs text-gray-400 text-right">Price</p>
-                            <p className="text-xl font-bold text-gray-900">Rs. 850</p>
+                            <p className="text-xl font-bold text-gray-900">
+                                LKR {ticket.schedule.route.price ? ticket.schedule.route.price.toFixed(2) : '0.00'}
+                            </p>
                         </div>
                     </div>
 

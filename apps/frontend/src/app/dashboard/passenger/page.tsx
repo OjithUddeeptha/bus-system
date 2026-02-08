@@ -17,16 +17,22 @@ export default function PassengerDashboard() {
     useEffect(() => {
         const fetchData = async () => {
             // 1. Fetch User Profile & Bookings
+            // 1. Fetch User Profile & Bookings
             try {
                 const profileRes = await api.get('/auth/profile');
                 setUser(profileRes.data);
+            } catch (error) {
+                console.warn("Failed to load user profile (401/500 likely)", error);
+                // Don't crash, just let it be guest/loading state or redirect if needed
+            }
 
+            try {
                 const bookingsRes = await api.get('/bookings/my-bookings');
                 if (bookingsRes.data && bookingsRes.data.length > 0) {
                     setUpcomingTrip(bookingsRes.data[0]);
                 }
             } catch (error) {
-                console.error("Failed to load user data", error);
+                console.warn("Failed to load bookings", error);
             }
 
             // 2. Fetch Weather (Independent of Auth)
@@ -149,7 +155,7 @@ export default function PassengerDashboard() {
                                 gradient="bg-gradient-to-br from-green-500 to-green-700"
                             />
                         </Link>
-                        <Link href="/dashboard/passenger/search">
+                        <Link href="/dashboard/passenger/booking">
                             <ActionCard
                                 title="Book Seat"
                                 subtitle="Reserve Now"

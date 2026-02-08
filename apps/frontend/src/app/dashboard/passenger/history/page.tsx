@@ -35,7 +35,7 @@ export default function HistoryPage() {
     useEffect(() => {
         const fetchBookings = async () => {
             try {
-                const res = await api.get('/bookings/user');
+                const res = await api.get('/bookings/my-bookings');
                 setBookings(res.data);
             } catch (error) {
                 console.error('Failed to fetch bookings', error);

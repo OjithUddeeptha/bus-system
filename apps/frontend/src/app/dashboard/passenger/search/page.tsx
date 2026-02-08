@@ -1,36 +1,108 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { FaSearch, FaMapMarkerAlt, FaBus, FaClock } from 'react-icons/fa';
 import api from '@/lib/api';
+import LocationAutocomplete from '@/components/LocationAutocomplete';
+import { FaBus, FaSearch, FaMapMarkerAlt, FaExchangeAlt, FaClock, FaEllipsisV } from 'react-icons/fa';
 
-// Dynamic Import for Map (No SSR)
-const RouteMap = dynamic(() => import('@/components/RouteMap'), { ssr: false });
+// Dynamic Import for Leaflet Map (Client Side Only)
+const LeafletRouteMap = dynamic(() => import('@/components/LeafletRouteMap'), {
+    ssr: false,
+    loading: () => <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400">Loading Map...</div>
+});
+
+interface Trip {
+    id: string; // scheduleId
+    departureTime: string;
+    arrivalTime: string;
+    route: {
+        routeNumber: string;
+        price: number;
+        startCity: string;
+        endCity: string;
+        distance: number;
+    };
+    bus: {
+        number: string;
+        capacity: number;
+    };
+}
 
 export default function SearchPage() {
-    const [from, setFrom] = useState('');
-    const [to, setTo] = useState('');
-    const [routes, setRoutes] = useState<any[]>([]);
-    const [selectedRoute, setSelectedRoute] = useState<any>(null);
+    const [from, setFrom] = useState('Colombo');
+    const [to, setTo] = useState('Kandy');
+    const [fromCoords, setFromCoords] = useState<[number, number] | null>(null);
+    const [toCoords, setToCoords] = useState<[number, number] | null>(null);
+    const [trips, setTrips] = useState<Trip[]>([]);
+    const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
     const [loading, setLoading] = useState(false);
 
-    // Mock Live Location
-    const [liveLoc, setLiveLoc] = useState({ lat: 6.9271, lng: 79.8612, speed: 45 });
+    // Map params: Start/End coordinates
+    const [mapParams, setMapParams] = useState<{ start: [number, number], end: [number, number] } | null>(null);
+
+    const geocodeCity = async (city: string): Promise<[number, number] | null> => {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(city)}, Sri Lanka`);
+            const data = await res.json();
+            if (data && data.length > 0) return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            return null;
+        } catch (err) {
+            console.error("Geocoding failed", err);
+            return null;
+        }
+    };
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-        try {
-            // Optimized: Server-side filtering
-            const res = await api.get('/routes/search', {
-                params: {
-                    start: from,
-                    end: to
-                }
-            });
+        if (!from || !to) return;
 
-            setRoutes(res.data);
-            if (res.data.length > 0) setSelectedRoute(res.data[0]);
+        setLoading(true);
+        setSelectedTrip(null);
+
+        // 1. Geocode Real Locations for Map (Prioritize AutoComplete coords)
+        let startCoord = fromCoords;
+        let endCoord = toCoords;
+
+        if (!startCoord) startCoord = await geocodeCity(from);
+        if (!endCoord) endCoord = await geocodeCity(to);
+
+        if (startCoord && endCoord) {
+            setMapParams({ start: startCoord, end: endCoord });
+        }
+
+        try {
+            // 2. Fetch Routes & Schedules from Backend
+            const res = await api.get('/routes/search', {
+                params: { start: from, end: to }
+            });
+            const fetchedRoutes = res.data;
+
+            // 3. Transform Nested Routes/Schedules into Flat "Trips"
+            const allTrips: Trip[] = fetchedRoutes.flatMap((r: any) =>
+                (r.schedules || []).map((s: any) => ({
+                    id: s.id,
+                    departureTime: s.departureTime,
+                    arrivalTime: s.arrivalTime,
+                    route: {
+                        routeNumber: r.routeNumber,
+                        price: r.price,
+                        startCity: r.startCity,
+                        endCity: r.endCity,
+                        distance: r.distance
+                    },
+                    bus: s.bus || { number: 'TBD', capacity: 40 }
+                }))
+            );
+
+            // Sort by departure time
+            allTrips.sort((a, b) => new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime());
+
+            setTrips(allTrips);
+
+            if (allTrips.length > 0) {
+                // Auto-select first trip
+                setSelectedTrip(allTrips[0]);
+            }
         } catch (error) {
             console.error("Search failed", error);
         } finally {
@@ -39,101 +111,157 @@ export default function SearchPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-900 text-white p-4 pb-20 flex flex-col md:flex-row gap-4">
+        <div className="flex h-[calc(100vh-64px)] bg-white overflow-hidden font-sans">
+            {/* Left Sidebar */}
+            <div className="w-full md:w-[400px] flex-shrink-0 bg-white shadow-2xl z-20 flex flex-col border-r border-gray-200">
 
-            {/* Left Panel: Search & Results */}
-            <div className="w-full md:w-1/3 flex flex-col gap-4">
-                {/* Search Form */}
-                <div className="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
-                    <h1 className="text-xl font-bold mb-4 flex items-center gap-2">
-                        <FaSearch className="text-green-500" /> Search Routes
-                    </h1>
-                    <form onSubmit={handleSearch} className="space-y-4">
-                        <div className="relative">
-                            <FaMapMarkerAlt className="absolute top-4 left-4 text-gray-500" />
-                            <input
-                                type="text"
-                                placeholder="From (e.g. Colombo)"
-                                value={from}
-                                onChange={e => setFrom(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-600 rounded-xl py-3 pl-10 pr-4 focus:ring-2 focus:ring-green-500 outline-none transition"
-                            />
-                        </div>
-                        <div className="relative">
-                            <FaMapMarkerAlt className="absolute top-4 left-4 text-gray-500" />
-                            <input
-                                type="text"
-                                placeholder="To (e.g. Kandy)"
-                                value={to}
-                                onChange={e => setTo(e.target.value)}
-                                className="w-full bg-gray-900 border border-gray-600 rounded-xl py-3 pl-10 pr-4 focus:ring-2 focus:ring-green-500 outline-none transition"
-                            />
-                        </div>
-                        <button type="submit" className="w-full bg-green-600 hover:bg-green-500 py-3 rounded-xl font-bold transition shadow-lg shadow-green-900/50">
-                            {loading ? 'Searching...' : 'Find Buses'}
+                {/* Search Header */}
+                <div className="p-4 bg-white shadow-sm z-10 sticky top-0">
+                    <div className="flex items-center justify-between mb-4">
+                        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                            <FaBus className="text-blue-600" /> Find Bus
+                        </h1>
+                        <button className="text-gray-500 hover:bg-gray-100 p-2 rounded-full">
+                            <FaEllipsisV />
                         </button>
-                    </form>
+                    </div>
+
+                    {/* Search Inputs */}
+                    <div className="border border-gray-300 rounded-lg overflow-hidden shadow-sm relative mb-3">
+                        <div className="absolute left-6 top-10 bottom-10 width-0.5 border-l-2 border-dotted border-gray-300 z-0"></div>
+                        <div className="relative bg-white z-10">
+                            <div className="flex items-center px-4 py-3 border-b border-gray-200">
+                                <div className="w-4 h-4 rounded-full border-2 border-gray-400 mr-4 bg-white"></div>
+                                <LocationAutocomplete
+                                    placeholder="From (e.g. Colombo)"
+                                    defaultValue={from}
+                                    onPlaceSelected={(place) => {
+                                        setFrom(place.city);
+                                        setFromCoords([place.lat, place.lng]);
+                                    }}
+                                    className="flex-1 outline-none text-gray-700 placeholder-gray-400 font-medium w-full"
+                                />
+                            </div>
+                            <div className="flex items-center px-4 py-3">
+                                <FaMapMarkerAlt className="text-red-500 text-lg mr-3 ml-0.5" />
+                                <LocationAutocomplete
+                                    placeholder="To (e.g. Kandy)"
+                                    defaultValue={to}
+                                    onPlaceSelected={(place) => {
+                                        setTo(place.city);
+                                        setToCoords([place.lat, place.lng]);
+                                    }}
+                                    className="flex-1 outline-none text-gray-700 placeholder-gray-400 font-medium w-full"
+                                />
+                            </div>
+                        </div>
+                        <button
+                            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white hover:bg-gray-100 p-2 rounded-full shadow border border-gray-200 z-20"
+                            onClick={() => { const temp = from; setFrom(to); setTo(temp); }}
+                        >
+                            <FaExchangeAlt className="text-gray-500 transform rotate-90" />
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={handleSearch}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-md transition flex justify-center items-center gap-2"
+                        disabled={loading}
+                    >
+                        {loading ? 'Finding Buses...' : (
+                            <>
+                                <FaSearch /> Search Route
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Filters / Mode */}
+                <div className="flex items-center justify-start px-6 gap-6 border-b border-gray-200 py-3 bg-gray-50">
+                    <div className="flex flex-col items-center gap-1 text-blue-600 cursor-pointer">
+                        <div className="bg-blue-100 p-2 rounded-full">
+                            <FaBus />
+                        </div>
+                        <span className="text-xs font-bold">Best</span>
+                    </div>
                 </div>
 
                 {/* Results List */}
-                <div className="bg-gray-800 rounded-2xl shadow-lg border border-gray-700 flex-1 overflow-auto max-h-[60vh]">
-                    <div className="p-4 border-b border-gray-700 font-bold text-gray-400 uppercase text-xs tracking-wider">
-                        Available Routes
-                    </div>
-                    {routes.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">
-                            <FaBus className="text-4xl mx-auto mb-2 opacity-20" />
-                            <p>No routes found. Try different cities.</p>
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-2 space-y-2">
+                    {loading && (
+                        <div className="p-10 text-center text-gray-500 animate-pulse">
+                            Searching for best routes...
                         </div>
-                    ) : (
-                        <div className="divide-y divide-gray-700">
-                            {routes.map(route => (
-                                <div
-                                    key={route.id}
-                                    onClick={() => setSelectedRoute(route)}
-                                    className={`p-4 cursor-pointer hover:bg-gray-700 transition ${selectedRoute?.id === route.id ? 'bg-gray-700 border-l-4 border-green-500' : ''}`}
-                                >
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="bg-blue-900 text-blue-200 text-xs font-bold px-2 py-1 rounded">
-                                            {route.routeNumber}
-                                        </span>
-                                        <span className="text-gray-400 text-xs flex items-center gap-1">
-                                            <FaClock /> Every 30m
-                                        </span>
-                                    </div>
-                                    <h3 className="font-bold text-lg text-white">{route.routePath}</h3>
-                                    <p className="text-sm text-gray-400 mt-1">
-                                        {route.startCity} <span className="text-gray-600">→</span> {route.endCity}
+                    )}
+
+                    {!loading && trips.length === 0 && mapParams && (
+                        <div className="p-8 text-center text-gray-500">
+                            <p className="font-medium">No scheduled buses found.</p>
+                            <span className="text-xs text-gray-400">Try changing the date or cities.</span>
+                        </div>
+                    )}
+
+                    {trips.map((trip) => (
+                        <div
+                            key={trip.id}
+                            onClick={() => setSelectedTrip(trip)}
+                            className={`bg-white p-4 rounded-lg shadow-sm border cursor-pointer transition hover:bg-blue-50 relative overflow-hidden ${selectedTrip?.id === trip.id ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-200'}`}
+                        >
+                            {/* Time / Duration */}
+                            <div className="flex justify-between items-start mb-2">
+                                <div>
+                                    <h3 className="text-gray-800 font-bold text-lg">
+                                        Bus {trip.route.routeNumber}
+                                    </h3>
+                                    <p className="text-gray-500 text-sm font-medium">{trip.bus?.number || 'Normal'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-gray-900 font-bold">
+                                        {new Date(trip.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                    <p className="text-gray-500 text-xs text-right">
+                                        {new Date(trip.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} Arr
                                     </p>
                                 </div>
-                            ))}
+                            </div>
+
+                            {/* Details */}
+                            <div className="flex items-center gap-2 text-gray-500 text-sm mb-2">
+                                <FaClock className="text-gray-400" />
+                                <span>{new Date(trip.departureTime).toDateString()}</span>
+                            </div>
+
+                            {/* Ticket Price Badge */}
+                            <div className="absolute bottom-4 right-4 bg-gray-200 text-gray-800 text-xs font-bold px-2 py-1 rounded">
+                                LKR {trip.route.price?.toFixed(2) || '450.00'}
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Empty State */}
+                    {trips.length === 0 && !loading && !mapParams && (
+                        <div className="text-center p-8 text-gray-400">
+                            Enter start and end locations to find directions.
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Right Panel: Map */}
-            <div className="w-full md:w-2/3 bg-gray-800 rounded-2xl shadow-lg border border-gray-700 overflow-hidden relative min-h-[500px]">
-                {selectedRoute ? (
-                    <>
-                        <div className="absolute top-4 left-4 z-[1000] bg-gray-900/90 backdrop-blur text-white p-3 rounded-xl border border-gray-600 shadow-xl max-w-xs">
-                            <h4 className="font-bold text-sm text-green-400 uppercase tracking-widest mb-1">Live Tracking</h4>
-                            <p className="font-bold text-lg">{selectedRoute.routeNumber} - {selectedRoute.routePath}</p>
-                            <div className="flex items-center gap-2 mt-2 text-sm text-gray-300">
-                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                Bus is active • {liveLoc.speed} km/h
-                            </div>
-                        </div>
-                        <RouteMap route={selectedRoute} liveLocation={liveLoc} />
-                    </>
+            {/* Right Map Area */}
+            <div className="flex-1 bg-gray-200 relative">
+                {mapParams ? (
+                    <LeafletRouteMap
+                        start={mapParams.start}
+                        end={mapParams.end}
+                        isTracking={!!selectedTrip}
+                    />
                 ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-500">
-                        <FaMapMarkerAlt className="text-6xl mb-4 opacity-20" />
-                        <p>Select a route to view map</p>
+                    <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gray-100">
+                        <FaBus className="text-6xl mb-4 opacity-10" />
+                        <p>Map View</p>
                     </div>
                 )}
             </div>
-
         </div>
     );
 }
