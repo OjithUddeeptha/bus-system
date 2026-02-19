@@ -19,7 +19,7 @@ These issues reduce efficiency, waste time, and create frustration for commuters
 
 
 
-## 💡 Our Solution
+##  Our Solution
 **Bus.lk** provides a centralized digital platform designed specifically for passengers. It introduces modern smart features to make bus travel easier, faster, and more reliable.
 
 ### ✔ Core Features
@@ -44,7 +44,7 @@ For this prototype, we implemented a **simulated tracking system** to demonstrat
 
 
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 **Frontend**
 - Next.js  
@@ -63,7 +63,7 @@ For this prototype, we implemented a **simulated tracking system** to demonstrat
 
 
 
-## ⚙ Technical Highlights
+##  Technical Highlights
 - Atomic transactions to prevent seat double booking  
 - Secure API route protection  
 - Modular backend architecture for scalability  
@@ -100,5 +100,5 @@ The goal of this project is to demonstrate how modern software technologies can 
 This project is developed for educational purposes.
 
 ---
-⭐ *If you like this project, consider giving it a star!*
+ *If you like this project, consider giving it a star!*
 
