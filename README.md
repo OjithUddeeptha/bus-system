@@ -2,7 +2,7 @@
 
 **Bus.lk** is a full-stack smart bus platform developed as a university project to improve the passenger experience in public transportation. The system focuses on solving real-world commuter problems using real-time technologies, scalable backend architecture, and a user-friendly interface.
 
----
+
 
 ## Problem Statement
 Public bus passengers commonly face daily challenges:
@@ -42,7 +42,7 @@ For this prototype, we implemented a **simulated tracking system** to demonstrat
 
 
 
----
+
 
 ## 🛠 Tech Stack
 
